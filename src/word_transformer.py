@@ -22,9 +22,34 @@ class WordTransformer( object ):
         self.disc = Discriminator( embed_size, hidden_size )
         self.loss = nn.CrossEntropyLoss().cuda()
 
-    def train( self, src_sents, tar_sents ):
-        pass
+        self.src_optimizer = torch.optim.Adam( self.src_embed.params, lr=5e-5 )
+        self.disc_optimizer = torch.optim.Adam( self.disc.params, lr=5e-5 )
 
-    
+    def train( self, src_sents, tar_sents ):
+        src_ids = self.src_vocab.sentences2ids( src_sents )
+        src_tensor = torch.tensor(src_ids ).view( -1, 1 )
+
+        tar_ids = self.tar_vocab.sentences2ids( tar_sents )
+        tar_tensor = torch.tensor(tar_ids ).view( -1, 1 )
+
+        src_label = torch.zeros( src_tensor.size() )
+        tar_label = torch.ones( tar_tensor.size() )
+
+        self.src_optimizer.zero_grad()
+        loss = self.loss( self.disc( self.src_embed( src_tensor ) ), tar_label )
+        loss.backward()
+        self.src_optimizer.step()
+
+        self.disc_optimizer.zero_grad()
+        loss = self.loss( self.disc( self.tar_embed( tar_tensor ) ), tar_label ) + \
+               self.loss( self.disc( self.src_embed( src_tensor ) ), src_label )
+        loss.backward()
+        self.disc_optimizer.step()
+
+    def tranform( self, src_sents ):
+        src_ids = self.src_vocab.sentences2ids( src_sents )
+        src_tensor = torch.tensor(src_ids ).view( -1, 1 )
+
+        return self.src_embed( src_tensor )
 
 
